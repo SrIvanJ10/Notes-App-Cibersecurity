@@ -173,6 +173,19 @@ def create_note(user_id):
     return jsonify(dict(note)), 201
 
 
+@app.route("/api/notes/<int:note_id>", methods=["GET"])
+@token_required
+def get_note(user_id, note_id):
+    conn = get_db()
+    note = conn.execute(
+        "SELECT * FROM notes WHERE id = ?", (note_id,)
+    ).fetchone()
+    conn.close()
+    if not note:
+        return jsonify({"error": "Nota no encontrada"}), 404
+    return jsonify(dict(note))
+
+
 @app.route("/api/notes/<int:note_id>", methods=["PUT"])
 @token_required
 def update_note(user_id, note_id):
@@ -185,7 +198,7 @@ def update_note(user_id, note_id):
 
     conn = get_db()
     note = conn.execute(
-        "SELECT * FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id)
+        "SELECT * FROM notes WHERE id = ?", (note_id,)
     ).fetchone()
     if not note:
         conn.close()
@@ -208,7 +221,7 @@ def update_note(user_id, note_id):
 def delete_note(user_id, note_id):
     conn = get_db()
     note = conn.execute(
-        "SELECT * FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id)
+        "SELECT * FROM notes WHERE id = ?", (note_id,)
     ).fetchone()
     if not note:
         conn.close()
