@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotasFacil - Acceso</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-card">
+
+      <div class="auth-header">
+        <h1>NotasFacil</h1>
+        <p>Tu espacio personal de notas</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Iniciar sesion</button>
+        <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Registrarse</button>
+      </div>
+
+      <!-- Login -->
+      <div id="login-form" class="auth-form">
+        <div class="form-group">
+          <label for="login-username">Usuario</label>
+          <input type="text" id="login-username" placeholder="Tu nombre de usuario" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contrasena</label>
+          <input type="password" id="login-password" placeholder="Tu contrasena" autocomplete="current-password">
+        </div>
+        <div id="login-error" class="error-msg hidden"></div>
+        <button class="btn-primary" onclick="login()">Iniciar sesion</button>
+      </div>
+
+      <!-- Register -->
+      <div id="register-form" class="auth-form hidden">
+        <div class="form-group">
+          <label for="reg-username">Usuario</label>
+          <input type="text" id="reg-username" placeholder="Elige un nombre de usuario" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Contrasena</label>
+          <input type="password" id="reg-password" placeholder="Minimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label for="reg-confirm">Confirmar contrasena</label>
+          <input type="password" id="reg-confirm" placeholder="Repite tu contrasena" autocomplete="new-password">
+        </div>
+        <div id="register-error" class="error-msg hidden"></div>
+        <div id="register-success" class="success-msg hidden"></div>
+        <button class="btn-primary" onclick="register()">Crear cuenta</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+</body>
+</html>

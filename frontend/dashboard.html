@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotasFacil - Mis notas</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="dashboard-page">
+
+  <div class="app-layout">
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>NotasFacil</h2>
+        <div class="user-info">
+          <span id="username-display"></span>
+          <button class="btn-logout" onclick="logout()">Salir</button>
+        </div>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="btn-new-note" onclick="newNote()">+ Nueva nota</button>
+      </div>
+
+      <div class="notes-list" id="notes-list"></div>
+    </aside>
+
+    <!-- ===== Main content ===== -->
+    <main class="main-content">
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">&#128196;</div>
+        <h3>No tienes notas aun</h3>
+        <p>Haz clic en "Nueva nota" para empezar</p>
+      </div>
+
+      <!-- Editor -->
+      <div id="note-editor" class="note-editor hidden">
+        <div class="editor-header">
+          <input type="text" id="note-title" class="note-title-input" placeholder="Titulo de la nota">
+          <div class="editor-actions">
+            <button class="btn-save" onclick="saveNote()">Guardar</button>
+            <button class="btn-delete" id="btn-delete" onclick="deleteNote()">Eliminar</button>
+          </div>
+        </div>
+        <textarea id="note-content" placeholder="Escribe tu nota aqui..."></textarea>
+        <div class="save-status" id="save-status"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
