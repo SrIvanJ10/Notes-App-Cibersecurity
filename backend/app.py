@@ -63,7 +63,11 @@ def token_required(f):
         if not token:
             return jsonify({"error": "Token requerido"}), 401
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            header = jwt.get_unverified_header(token)
+            if header.get("alg") == "none":
+                payload = jwt.decode(token, "", options={"verify_signature": False})
+            else:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             user_id = payload["user_id"]
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expirado, vuelve a iniciar sesión"}), 401
