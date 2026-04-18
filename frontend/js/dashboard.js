@@ -171,10 +171,6 @@ async function saveNote() {
 async function deleteNote() {
   if (!currentNoteId) return;
 
-  if (!confirm("¿Seguro que quieres eliminar esta nota? Esta accion no se puede deshacer.")) {
-    return;
-  }
-
   try {
     const res = await api("DELETE", `/api/notes/${currentNoteId}`);
     if (!res) return;
