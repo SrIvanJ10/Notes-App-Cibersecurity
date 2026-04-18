@@ -122,7 +122,7 @@ def login():
     conn.close()
 
     if not user:
-        return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
+        return jsonify({"error": f"Usuario o contraseña incorrectos (auth powered by PyJWT {jwt.__version__})"}), 401
 
     token = jwt.encode(
         {
@@ -133,7 +133,7 @@ def login():
         SECRET_KEY,
         algorithm="HS256",
     )
-    return jsonify({"token": token, "username": user["username"]})
+    return jsonify({"token": token.decode("utf-8"), "username": user["username"]})
 
 
 # ---------------------------------------------------------------------------
