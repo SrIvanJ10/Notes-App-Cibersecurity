@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import datetime
 import functools
 
 import hashlib
@@ -128,7 +127,6 @@ def login():
         {
             "user_id": user["id"],
             "username": user["username"],
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
         },
         SECRET_KEY,
         algorithm="HS256",
