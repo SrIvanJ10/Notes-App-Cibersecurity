@@ -70,8 +70,8 @@ function renderList() {
       (note) => `
       <div class="note-item ${note.id === currentNoteId ? "active" : ""}"
            onclick="openNote(${note.id})">
-        <div class="note-item-title">${escapeHtml(note.title)}</div>
-        <div class="note-item-preview">${escapeHtml(note.content || "Sin contenido")}</div>
+        <div class="note-item-title">${note.title}</div>
+        <div class="note-item-preview">${note.content || "Sin contenido"}</div>
         <div class="note-item-date">${formatDate(note.updated_at)}</div>
       </div>`
     )
