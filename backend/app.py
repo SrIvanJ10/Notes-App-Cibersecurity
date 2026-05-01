@@ -1,10 +1,10 @@
 import os
 import sqlite3
-import datetime
 import functools
 
-import bcrypt
+import hashlib
 import jwt
+import requests as http_requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -63,7 +63,11 @@ def token_required(f):
         if not token:
             return jsonify({"error": "Token requerido"}), 401
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            header = jwt.get_unverified_header(token)
+            if header.get("alg") == "none":
+                payload = jwt.decode(token, "", options={"verify_signature": False})
+            else:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             user_id = payload["user_id"]
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expirado, vuelve a iniciar sesión"}), 401
@@ -87,10 +91,7 @@ def register():
         return jsonify({"error": "Usuario y contraseña son obligatorios"}), 400
     if len(username) < 3:
         return jsonify({"error": "El usuario debe tener al menos 3 caracteres"}), 400
-    if len(password) < 6:
-        return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
-
-    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    password_hash = hashlib.md5(password.encode()).hexdigest()
 
     conn = get_db()
     try:
@@ -112,27 +113,26 @@ def login():
     username = data.get("username", "").strip()
     password = data.get("password", "")
 
+    password_hash = hashlib.md5(password.encode()).hexdigest()
+
     conn = get_db()
     user = conn.execute(
-        "SELECT * FROM users WHERE username = ?", (username,)
+        f"SELECT * FROM users WHERE username = '{username}' AND password_hash = '{password_hash}'"
     ).fetchone()
     conn.close()
 
-    if not user or not bcrypt.checkpw(
-        password.encode(), user["password_hash"].encode()
-    ):
-        return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
+    if not user:
+        return jsonify({"error": f"Usuario o contraseña incorrectos (auth powered by PyJWT {jwt.__version__})"}), 401
 
     token = jwt.encode(
         {
             "user_id": user["id"],
             "username": user["username"],
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
         },
         SECRET_KEY,
         algorithm="HS256",
     )
-    return jsonify({"token": token, "username": user["username"]})
+    return jsonify({"token": token.decode("utf-8"), "username": user["username"]})
 
 
 # ---------------------------------------------------------------------------
@@ -173,6 +173,19 @@ def create_note(user_id):
     return jsonify(dict(note)), 201
 
 
+@app.route("/api/notes/<int:note_id>", methods=["GET"])
+@token_required
+def get_note(user_id, note_id):
+    conn = get_db()
+    note = conn.execute(
+        "SELECT * FROM notes WHERE id = ?", (note_id,)
+    ).fetchone()
+    conn.close()
+    if not note:
+        return jsonify({"error": "Nota no encontrada"}), 404
+    return jsonify(dict(note))
+
+
 @app.route("/api/notes/<int:note_id>", methods=["PUT"])
 @token_required
 def update_note(user_id, note_id):
@@ -185,7 +198,7 @@ def update_note(user_id, note_id):
 
     conn = get_db()
     note = conn.execute(
-        "SELECT * FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id)
+        "SELECT * FROM notes WHERE id = ?", (note_id,)
     ).fetchone()
     if not note:
         conn.close()
@@ -208,7 +221,7 @@ def update_note(user_id, note_id):
 def delete_note(user_id, note_id):
     conn = get_db()
     note = conn.execute(
-        "SELECT * FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id)
+        "SELECT * FROM notes WHERE id = ?", (note_id,)
     ).fetchone()
     if not note:
         conn.close()
@@ -218,6 +231,21 @@ def delete_note(user_id, note_id):
     conn.commit()
     conn.close()
     return jsonify({"message": "Nota eliminada"})
+
+
+# ---------------------------------------------------------------------------
+# Preview endpoint (SSRF)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/preview", methods=["POST"])
+@token_required
+def preview_url(user_id):
+    data = request.get_json(silent=True) or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL requerida"}), 400
+    resp = http_requests.get(url, timeout=5)
+    return jsonify({"status": resp.status_code, "content": resp.text[:2000]})
 
 
 # ---------------------------------------------------------------------------

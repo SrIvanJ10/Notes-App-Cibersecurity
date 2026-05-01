@@ -70,8 +70,8 @@ function renderList() {
       (note) => `
       <div class="note-item ${note.id === currentNoteId ? "active" : ""}"
            onclick="openNote(${note.id})">
-        <div class="note-item-title">${escapeHtml(note.title)}</div>
-        <div class="note-item-preview">${escapeHtml(note.content || "Sin contenido")}</div>
+        <div class="note-item-title">${note.title}</div>
+        <div class="note-item-preview">${note.content || "Sin contenido"}</div>
         <div class="note-item-date">${formatDate(note.updated_at)}</div>
       </div>`
     )
@@ -171,10 +171,6 @@ async function saveNote() {
 async function deleteNote() {
   if (!currentNoteId) return;
 
-  if (!confirm("¿Seguro que quieres eliminar esta nota? Esta accion no se puede deshacer.")) {
-    return;
-  }
-
   try {
     const res = await api("DELETE", `/api/notes/${currentNoteId}`);
     if (!res) return;
@@ -231,6 +227,28 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(text || ""));
   return div.innerHTML;
+}
+
+// ---------------------------------------------------------------------------
+// URL preview (SSRF)
+// ---------------------------------------------------------------------------
+async function previewUrl() {
+  const url = document.getElementById("preview-url").value.trim();
+  const resultEl = document.getElementById("preview-result");
+  if (!url) return;
+
+  resultEl.classList.remove("hidden");
+  resultEl.textContent = "Cargando...";
+
+  const res = await api("POST", "/api/preview", { url });
+  if (!res) return;
+
+  const data = await res.json();
+  if (!res.ok) {
+    resultEl.textContent = "Error: " + (data.error || "No se pudo cargar");
+    return;
+  }
+  resultEl.innerHTML = data.content;
 }
 
 function formatDate(dateStr) {

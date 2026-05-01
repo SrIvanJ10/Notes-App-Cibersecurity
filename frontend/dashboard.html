@@ -48,6 +48,14 @@
         </div>
         <textarea id="note-content" placeholder="Escribe tu nota aqui..."></textarea>
         <div class="save-status" id="save-status"></div>
+
+        <div class="preview-section">
+          <div class="preview-input-row">
+            <input type="text" id="preview-url" placeholder="URL para previsualizar (ej: https://example.com)">
+            <button class="btn-preview" onclick="previewUrl()">Previsualizar</button>
+          </div>
+          <div id="preview-result" class="preview-result hidden"></div>
+        </div>
       </div>
 
     </main>
