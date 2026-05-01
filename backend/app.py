@@ -4,6 +4,7 @@ import functools
 
 import hashlib
 import jwt
+import requests as http_requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -230,6 +231,21 @@ def delete_note(user_id, note_id):
     conn.commit()
     conn.close()
     return jsonify({"message": "Nota eliminada"})
+
+
+# ---------------------------------------------------------------------------
+# Preview endpoint (SSRF)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/preview", methods=["POST"])
+@token_required
+def preview_url(user_id):
+    data = request.get_json(silent=True) or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL requerida"}), 400
+    resp = http_requests.get(url, timeout=5)
+    return jsonify({"status": resp.status_code, "content": resp.text[:2000]})
 
 
 # ---------------------------------------------------------------------------

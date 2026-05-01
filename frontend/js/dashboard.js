@@ -229,6 +229,28 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// ---------------------------------------------------------------------------
+// URL preview (SSRF)
+// ---------------------------------------------------------------------------
+async function previewUrl() {
+  const url = document.getElementById("preview-url").value.trim();
+  const resultEl = document.getElementById("preview-result");
+  if (!url) return;
+
+  resultEl.classList.remove("hidden");
+  resultEl.textContent = "Cargando...";
+
+  const res = await api("POST", "/api/preview", { url });
+  if (!res) return;
+
+  const data = await res.json();
+  if (!res.ok) {
+    resultEl.textContent = "Error: " + (data.error || "No se pudo cargar");
+    return;
+  }
+  resultEl.innerHTML = data.content;
+}
+
 function formatDate(dateStr) {
   // SQLite stores UTC timestamps without timezone info
   const date = new Date(dateStr + "Z");
