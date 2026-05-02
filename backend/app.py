@@ -2,6 +2,7 @@ import os
 import sqlite3
 import datetime
 import functools
+import logging
 
 import bcrypt
 import jwt
@@ -15,6 +16,14 @@ CORS(app)
 
 limiter = Limiter(key_func=get_remote_address)
 limiter.init_app(app)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+# Hay varios niveles de log: DEBUG, INFO, WARNING, ERROR, CRITICAL
+# Al poner INFO, se registra todo menos los DEBUG
+# Format define la estructura que seguirán todos los logs
+
+security_log = logging.getLogger("security")
+# Crea un canal de logs especifico para seguridad, para facilitar el analisis
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 DB_PATH = os.environ.get("DATABASE_URL", "/data/notes.db")
@@ -118,6 +127,8 @@ def login():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
     password = data.get("password", "")
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    # Obtener IP del cliente
 
     conn = get_db()
     user = conn.execute(
@@ -128,8 +139,11 @@ def login():
     if not user or not bcrypt.checkpw(
         password.encode(), user["password_hash"].encode()
     ):
-        return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
+        # Loging fallido
+        security_log.warning("Login fallido - usuario: %s IP: %s", username, ip)
+        return jsonify({"error": "Usuario y/o contraseña incorrectos"}), 401
 
+    security_log.info("Login exitoso - usuario: %s IP: %s", username, ip)
     token = jwt.encode(
         {
             "user_id": user["id"],
