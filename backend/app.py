@@ -7,9 +7,14 @@ import bcrypt
 import jwt
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 CORS(app)
+
+limiter = Limiter(key_func=get_remote_address)
+limiter.init_app(app)
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 DB_PATH = os.environ.get("DATABASE_URL", "/data/notes.db")
@@ -78,6 +83,7 @@ def token_required(f):
 # ---------------------------------------------------------------------------
 
 @app.route("/api/auth/register", methods=["POST"])
+@limiter.limit("3 per minute") # 3 intentos por minuto por IP
 def register():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
@@ -107,6 +113,7 @@ def register():
 
 
 @app.route("/api/auth/login", methods=["POST"])
+@limiter.limit("5 per minute") # 5 intentos por minuto por IP
 def login():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
