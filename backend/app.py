@@ -6,6 +6,7 @@ import logging
 
 import bcrypt
 import jwt
+import pyotp
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -49,6 +50,7 @@ def init_db():
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             username      TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            totp_secret   TEXT NOT NULL,
             created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -64,9 +66,10 @@ def init_db():
         )
     """)
     honeypot_hash = bcrypt.hashpw(b"PaquitoElChocolatero", bcrypt.gensalt()).decode()
+    honeypot_totp = pyotp.random_base32()  # Nunca se usará: el honeypot se activa antes del paso TOTP
     conn.execute(
-        "INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)",
-        ("Paco", honeypot_hash),
+        "INSERT OR IGNORE INTO users (username, password_hash, totp_secret) VALUES (?, ?, ?)",
+        ("Paco", honeypot_hash, honeypot_totp),
     )
     conn.commit()
     conn.close()
@@ -84,6 +87,8 @@ def token_required(f):
             return jsonify({"error": "Token requerido"}), 401
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            if payload.get("mfa_pending"):
+                return jsonify({"error": "Autenticación incompleta: falta el código TOTP"}), 401
             user_id = payload["user_id"]
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expirado, vuelve a iniciar sesión"}), 401
@@ -121,15 +126,19 @@ def register():
         return jsonify({"error": "La contraseña debe contener al menos un número"}), 400
 
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    totp_secret = pyotp.random_base32()
+    # provisioning_uri genera la URL otpauth:// estándar que entienden todas las apps de autenticación
+    totp_uri = pyotp.TOTP(totp_secret).provisioning_uri(name=username, issuer_name="NotasFacil")
 
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            (username, password_hash),
+            "INSERT INTO users (username, password_hash, totp_secret) VALUES (?, ?, ?)",
+            (username, password_hash, totp_secret),
         )
         conn.commit()
-        return jsonify({"message": "Cuenta creada exitosamente"}), 201
+        # Devolvemos el URI para que el frontend lo muestre al usuario
+        return jsonify({"totp_uri": totp_uri, "totp_secret": totp_secret}), 201
     except sqlite3.IntegrityError:
         return jsonify({"error": "Ese nombre de usuario ya está en uso"}), 409
     finally:
@@ -169,33 +178,80 @@ def login():
         security_log.critical("HONEYPOT ACTIVADO - IP: %s", ip)
         return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
 
-    # Loging exitoso
-    security_log.info("Login exitoso - usuario: %s IP: %s", username, ip)
-    token = jwt.encode(
+    # Contraseña correcta: emitir token temporal de MFA pendiente (5 minutos)
+    # Este token NO da acceso a las notas; solo sirve para el segundo paso (TOTP).
+    security_log.info("Contraseña correcta, esperando TOTP - usuario: %s IP: %s", username, ip)
+    mfa_token = jwt.encode(
         {
             "user_id": user["id"],
-            "username": user["username"],
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+            "mfa_pending": True,
+            "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5),
         },
         SECRET_KEY,
         algorithm="HS256",
     )
-    # El token va en una cookie HttpOnly
-    # Evita la obtención del token y la cookie por XSS
-    # SameSite=Strict impide que se envíe en peticiones cross-site (previene CSRF).
-    response = jsonify({"username": user["username"]})
+    response = jsonify({"mfa_required": True})
     response.set_cookie(
-        "token",
-        token,
-        httponly=True,   # JS no puede leerla
-        secure=True,     # Solo se envía por HTTPS, impide cookies en canal inseguro (HTTP)
+        "mfa_token",
+        mfa_token,
+        httponly=True,
+        secure=True,
         samesite="Strict",
-        max_age=86400,   # 24 horas en segundos
-        path="/",
+        max_age=300,  # 5 minutos
+        path="/api/auth/totp/verify",  # Solo se envía a este endpoint
     )
     return response
 
-# borra la cookie del cliente, pero sigue siendo válida hasta que expire
+@app.route("/api/auth/totp/verify", methods=["POST"])
+@limiter.limit("5 per minute")  # Limitar intentos de TOTP para evitar fuerza bruta
+def totp_verify():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    mfa_token = request.cookies.get("mfa_token")
+    if not mfa_token:
+        return jsonify({"error": "Token MFA requerido"}), 401
+
+    try:
+        payload = jwt.decode(mfa_token, SECRET_KEY, algorithms=["HS256"])
+        if not payload.get("mfa_pending"):
+            return jsonify({"error": "Token inválido"}), 401
+        user_id = payload["user_id"]
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "El código TOTP ha expirado, vuelve a iniciar sesión"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Token inválido"}), 401
+
+    data = request.get_json(silent=True) or {}
+    code = data.get("code", "").strip()
+
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+
+    if not user or not pyotp.TOTP(user["totp_secret"]).verify(code, valid_window=1):
+        security_log.warning("TOTP fallido - user_id: %s IP: %s", user_id, ip)
+        return jsonify({"error": "Código TOTP incorrecto"}), 401
+
+    # TOTP correcto: emitir cookie de sesión real y borrar el token temporal
+    security_log.info("Login completo (TOTP ok) - usuario: %s IP: %s", user["username"], ip)
+    token = jwt.encode(
+        {
+            "user_id": user["id"],
+            "username": user["username"],
+            "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24),
+        },
+        SECRET_KEY,
+        algorithm="HS256",
+    )
+    response = jsonify({"username": user["username"]})
+    response.set_cookie(
+        "token", token,
+        httponly=True, secure=True, samesite="Strict",
+        max_age=86400, path="/",
+    )
+    response.delete_cookie("mfa_token", path="/api/auth/totp/verify", samesite="Strict")
+    return response
+
+
 @app.route("/api/auth/logout", methods=["POST"])
 @token_required
 def logout(user_id):

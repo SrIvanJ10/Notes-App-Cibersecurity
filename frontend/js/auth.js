@@ -55,10 +55,8 @@ async function login() {
       return;
     }
 
-    // El token viene en una cookie HttpOnly
-    // Solo guardamos el username en localStorage para mostrarlo en la interfaz.
-    localStorage.setItem("username", data.username);
-    window.location.href = "/dashboard.html";
+    // Contraseña correcta: el servidor pide el segundo factor
+    showTotpVerify();
   } catch {
     showError(errorEl, "Error de conexion. Intenta de nuevo.");
   }
@@ -101,11 +99,46 @@ async function register() {
       return;
     }
 
-    successEl.textContent = "Cuenta creada. Ahora puedes iniciar sesion.";
-    successEl.classList.remove("hidden");
+    // Mostrar el secreto TOTP para que el usuario lo añada a su app
+    document.getElementById("totp-secret-display").textContent = data.totp_secret;
+    document.getElementById("totp-uri-display").textContent = data.totp_uri;
+    hideAllForms();
+    document.getElementById("totp-setup").classList.remove("hidden");
+  } catch {
+    showError(errorEl, "Error de conexion. Intenta de nuevo.");
+  }
+}
 
-    // Switch to login tab after a short delay
-    setTimeout(() => switchTab("login"), 1800);
+// ---------------------------------------------------------------------------
+// TOTP verify
+// ---------------------------------------------------------------------------
+async function verifyTotp() {
+  const code = document.getElementById("totp-code").value.trim();
+  const errorEl = document.getElementById("totp-error");
+  errorEl.classList.add("hidden");
+
+  if (!code) {
+    showError(errorEl, "Introduce el codigo de tu app de autenticacion");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/auth/totp/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showError(errorEl, data.error || "Codigo incorrecto");
+      return;
+    }
+
+    // Token de sesión recibido en cookie HttpOnly, guardamos solo el username
+    localStorage.setItem("username", data.username);
+    window.location.href = "/dashboard.html";
   } catch {
     showError(errorEl, "Error de conexion. Intenta de nuevo.");
   }
@@ -117,6 +150,19 @@ async function register() {
 function showError(el, msg) {
   el.textContent = msg;
   el.classList.remove("hidden");
+}
+
+function hideAllForms() {
+  ["login-form", "register-form", "totp-setup", "totp-verify-form"].forEach(id => {
+    document.getElementById(id).classList.add("hidden");
+  });
+  document.getElementById("auth-tabs") && document.getElementById("auth-tabs").classList.add("hidden");
+}
+
+function showTotpVerify() {
+  hideAllForms();
+  document.getElementById("totp-verify-form").classList.remove("hidden");
+  document.getElementById("totp-code").focus();
 }
 
 // Allow Enter key to submit the visible form

@@ -16,7 +16,7 @@
         <p>Tu espacio personal de notas</p>
       </div>
 
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="auth-tabs">
         <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Iniciar sesion</button>
         <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Registrarse</button>
       </div>
@@ -50,8 +50,32 @@
           <input type="password" id="reg-confirm" placeholder="Repite tu contrasena" autocomplete="new-password">
         </div>
         <div id="register-error" class="error-msg hidden"></div>
-        <div id="register-success" class="success-msg hidden"></div>
         <button class="btn-primary" onclick="register()">Crear cuenta</button>
+      </div>
+
+      <!-- TOTP setup (se muestra tras registrarse) -->
+      <div id="totp-setup" class="auth-form hidden">
+        <h3>Configura tu autenticador</h3>
+        <p>Anade esta clave a tu app de autenticacion (Aegis, Google Authenticator, etc.):</p>
+        <div class="totp-secret-box">
+          <code id="totp-secret-display"></code>
+        </div>
+        <p class="totp-hint">O escanea con la URI: <span id="totp-uri-display" class="totp-uri"></span></p>
+        <p>Una vez anadido, inicia sesion con tu usuario y contrasena.</p>
+        <button class="btn-primary" onclick="switchTab('login')">Ir al inicio de sesion</button>
+      </div>
+
+      <!-- TOTP verify (se muestra tras login con contrasena correcta) -->
+      <div id="totp-verify-form" class="auth-form hidden">
+        <h3>Verificacion en dos pasos</h3>
+        <p>Introduce el codigo de 6 digitos de tu app de autenticacion:</p>
+        <div class="form-group">
+          <label for="totp-code">Codigo TOTP</label>
+          <input type="text" id="totp-code" placeholder="123456" maxlength="6"
+                 autocomplete="one-time-code" inputmode="numeric">
+        </div>
+        <div id="totp-error" class="error-msg hidden"></div>
+        <button class="btn-primary" onclick="verifyTotp()">Verificar</button>
       </div>
 
     </div>
