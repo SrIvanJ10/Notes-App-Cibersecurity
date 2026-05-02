@@ -25,7 +25,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 security_log = logging.getLogger("security")
 # Crea un canal de logs especifico para seguridad, para facilitar el analisis
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY no está definida. Define la variable de entorno antes de arrancar.")
 DB_PATH = os.environ.get("DATABASE_URL", "/data/notes.db")
 
 

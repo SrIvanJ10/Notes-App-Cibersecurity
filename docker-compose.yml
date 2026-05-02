@@ -15,7 +15,8 @@ services:
     volumes:
       - ./backend:/app
       - ./data:/data
+    env_file:
+      - .env
     environment:
-      - SECRET_KEY=cambia-esta-clave-secreta-en-produccion
       - DATABASE_URL=/data/notes.db
     restart: unless-stopped
