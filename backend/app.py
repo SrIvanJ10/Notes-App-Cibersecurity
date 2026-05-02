@@ -208,6 +208,11 @@ def create_note(user_id):
 
     if not title:
         return jsonify({"error": "El título es obligatorio"}), 400
+    # Validaciones para evitar abusos y posible DoS, no es razonable permitir notas tan grandes
+    if len(title) > 200:
+        return jsonify({"error": "El título no puede superar los 200 caracteres"}), 400
+    if len(content) > 50_000:
+        return jsonify({"error": "El contenido no puede superar los 50000 caracteres"}), 400
 
     conn = get_db()
     cursor = conn.execute(
@@ -231,6 +236,10 @@ def update_note(user_id, note_id):
 
     if not title:
         return jsonify({"error": "El título es obligatorio"}), 400
+    if len(title) > 200:
+        return jsonify({"error": "El título no puede superar los 200 caracteres"}), 400
+    if len(content) > 50_000:
+        return jsonify({"error": "El contenido no puede superar los 50000 caracteres"}), 400
 
     conn = get_db()
     note = conn.execute(
