@@ -279,6 +279,26 @@ def delete_note(user_id, note_id):
 
 
 # ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Registra el error completo internamente para poder depurarlo
+    app.logger.error("Unhandled exception: %s", e, exc_info=True)
+    # Pero el cliente solo recibe un mensaje generico, sin detalles internos
+    return jsonify({"error": "Error interno del servidor"}), 500
+
+@app.errorhandler(404)
+def handle_404(_):
+    return jsonify({"error": "Recurso no encontrado"}), 404
+
+@app.errorhandler(405)
+def handle_405(_):
+    return jsonify({"error": "Método no permitido"}), 405
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
