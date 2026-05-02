@@ -110,8 +110,14 @@ def register():
         return jsonify({"error": "Usuario y contraseña son obligatorios"}), 400
     if len(username) < 3:
         return jsonify({"error": "El usuario debe tener al menos 3 caracteres"}), 400
-    if len(password) < 6:
-        return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
+    if len(password) > 72: # El Hash consume recursos
+        return jsonify({"error": "La contraseña no puede superar los 72 caracteres"}), 400
+    if not any(c.isupper() for c in password):
+        return jsonify({"error": "La contraseña debe contener al menos una mayúscula"}), 400
+    if not any(c.isdigit() for c in password):
+        return jsonify({"error": "La contraseña debe contener al menos un número"}), 400
 
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
