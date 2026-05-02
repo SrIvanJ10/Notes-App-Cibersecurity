@@ -1,5 +1,6 @@
 // Redirect to dashboard if already authenticated
-if (localStorage.getItem("token")) {
+// (el username en localStorage es solo una pista visual; la sesión real la valida el servidor)
+if (localStorage.getItem("username")) {
   window.location.href = "/dashboard.html";
 }
 
@@ -54,7 +55,8 @@ async function login() {
       return;
     }
 
-    localStorage.setItem("token", data.token);
+    // El token viene en una cookie HttpOnly
+    // Solo guardamos el username en localStorage para mostrarlo en la interfaz.
     localStorage.setItem("username", data.username);
     window.location.href = "/dashboard.html";
   } catch {

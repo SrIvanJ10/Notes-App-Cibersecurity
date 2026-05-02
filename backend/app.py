@@ -79,8 +79,7 @@ def init_db():
 def token_required(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        token = auth_header.replace("Bearer ", "").strip()
+        token = request.cookies.get("token")  # Lee la cookie
         if not token:
             return jsonify({"error": "Token requerido"}), 401
         try:
@@ -181,7 +180,28 @@ def login():
         SECRET_KEY,
         algorithm="HS256",
     )
-    return jsonify({"token": token, "username": user["username"]})
+    # El token va en una cookie HttpOnly
+    # Evita la obtención del token y la cookie por XSS
+    # SameSite=Strict impide que se envíe en peticiones cross-site (previene CSRF).
+    response = jsonify({"username": user["username"]})
+    response.set_cookie(
+        "token",
+        token,
+        httponly=True,
+        samesite="Strict",
+        max_age=86400,  # 24 horas en segundos
+        path="/",
+    )
+    return response
+
+# borra la cookie del cliente, pero sigue siendo válida hasta que expire
+@app.route("/api/auth/logout", methods=["POST"])
+@token_required
+def logout(user_id):
+    security_log.info("Logout - user_id: %s", user_id)
+    response = jsonify({"message": "Sesión cerrada"})
+    response.delete_cookie("token", path="/", samesite="Strict")
+    return response
 
 
 # ---------------------------------------------------------------------------

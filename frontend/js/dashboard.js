@@ -1,10 +1,12 @@
 // ---------------------------------------------------------------------------
 // Auth guard
 // ---------------------------------------------------------------------------
-const token = localStorage.getItem("token");
 const username = localStorage.getItem("username");
 
-if (!token) {
+// Si no hay username guardado, redirige al login
+// La validación real la hace el servidor
+// si la cookie expiró, cualquier petición devolverá 401 y redirigirá al login
+if (!username) {
   window.location.href = "/index.html";
 }
 
@@ -27,10 +29,7 @@ loadNotes();
 async function api(method, path, body = null) {
   const options = {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
   };
   if (body !== null) options.body = JSON.stringify(body);
 
@@ -198,8 +197,10 @@ async function deleteNote() {
 // ---------------------------------------------------------------------------
 // Logout
 // ---------------------------------------------------------------------------
-function logout() {
-  localStorage.removeItem("token");
+async function logout() {
+  // Llama al servidor para que borre la cookie HttpOnly.
+  // El cliente no puede borrarla directamente al ser HttpOnly.
+  await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   localStorage.removeItem("username");
   window.location.href = "/index.html";
 }
