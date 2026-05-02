@@ -13,6 +13,9 @@ env/
 .env
 .env.*
 
+# Certificados TLS (la clave privada no debe estar en el repositorio)
+nginx/certs/
+
 # Sistemas operativos
 .DS_Store
 Thumbs.db

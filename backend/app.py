@@ -12,7 +12,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost"]) # Solo permitir accesos locales
+CORS(app, origins=["https://localhost"]) # Solo permitir accesos locales (HTTPS)
 
 limiter = Limiter(key_func=get_remote_address)
 limiter.init_app(app)
@@ -187,9 +187,10 @@ def login():
     response.set_cookie(
         "token",
         token,
-        httponly=True,
+        httponly=True,   # JS no puede leerla
+        secure=True,     # Solo se envía por HTTPS, impide cookies en canal inseguro (HTTP)
         samesite="Strict",
-        max_age=86400,  # 24 horas en segundos
+        max_age=86400,   # 24 horas en segundos
         path="/",
     )
     return response
