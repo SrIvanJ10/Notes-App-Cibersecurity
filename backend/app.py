@@ -61,6 +61,11 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
+    honeypot_hash = bcrypt.hashpw(b"PaquitoElChocolatero", bcrypt.gensalt()).decode()
+    conn.execute(
+        "INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)",
+        ("Paco", honeypot_hash),
+    )
     conn.commit()
     conn.close()
 
@@ -92,7 +97,10 @@ def token_required(f):
 # ---------------------------------------------------------------------------
 
 @app.route("/api/auth/register", methods=["POST"])
-@limiter.limit("3 per minute") # 3 intentos por minuto por IP
+@limiter.limit("3 per minute;10 per day") 
+    # 3 intentos por minuto
+    # 10 al dia por IP
+    # Es muy raro que un usuario supere estos limites para crear una cuenta
 def register():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
@@ -122,7 +130,10 @@ def register():
 
 
 @app.route("/api/auth/login", methods=["POST"])
-@limiter.limit("5 per minute") # 5 intentos por minuto por IP
+@limiter.limit("5 per minute;20 per day")
+    # 5 intentos por minuto
+    # 20 al dia por IP
+    # Al tener JWT, es muy raro que un usuario legitimo supere el limite
 def login():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
@@ -143,6 +154,15 @@ def login():
         security_log.warning("Login fallido - usuario: %s IP: %s", username, ip)
         return jsonify({"error": "Usuario y/o contraseña incorrectos"}), 401
 
+    # HONEYPOT: El usuario "admin" no hace nada
+        # Al detectar que alguien accede con el usuario sabemos:
+        # 1. Puede estar probando contraseñas comunes --> acceso malicioso
+        # 2. 
+    if username == "Paco":
+        security_log.critical("HONEYPOT ACTIVADO - IP: %s", ip)
+        return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
+
+    # Loging exitoso
     security_log.info("Login exitoso - usuario: %s IP: %s", username, ip)
     token = jwt.encode(
         {
