@@ -12,7 +12,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost"]) # Solo permitir accesos locales
 
 limiter = Limiter(key_func=get_remote_address)
 limiter.init_app(app)
@@ -275,4 +275,4 @@ def delete_note(user_id, note_id):
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
